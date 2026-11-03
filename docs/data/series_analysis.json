@@ -1,5 +1,12 @@
 {
-  "generated_at": "2026-11-03T09:08:07Z",
+  "generated_at": "2026-11-03T09:21:32Z",
+  "location": {
+    "slug": "le-mans",
+    "name": "Le Mans",
+    "lat": 48.0061,
+    "lon": 0.1996,
+    "hemisphere": "Northern"
+  },
   "unit": "ppm",
   "raw": [
     {
@@ -1216,5 +1223,5 @@
     }
   ],
   "trend_slope_per_day": 0.1083,
-  "honest_note": "Projection covers 7 days ahead from 90 days of real CO2 history (0 known gap(s) in the source data). This is a straight line through one seasonal window of real atmospheric data -- CO2 has a well-known yearly cycle (lower in the Northern Hemisphere's growing season, higher in winter), so a trend measured over 90 summer/autumn days should NOT be extrapolated across season boundaries. Trust this projection only a few days out."
+  "honest_note": "Projection covers 7 days ahead from 90 days of real CO2 history for Le Mans (0 known gap(s) in the source data). This is a straight line through one seasonal window of real atmospheric data -- CO2 has a well-known yearly cycle (lower during the local growing season, higher in winter; Le Mans is in the Northern Hemisphere, so its seasons are the usual Northern ones), so a 90-day trend should NOT be extrapolated across season boundaries. Trust this projection only a few days out."
 }
