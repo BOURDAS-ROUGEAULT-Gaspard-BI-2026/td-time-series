@@ -1,0 +1,12 @@
+[
+  {
+    "slug": "le-mans",
+    "name": "Le Mans",
+    "file": "data/series_analysis.json"
+  },
+  {
+    "slug": "sydney",
+    "name": "Sydney",
+    "file": "data/series_analysis_sydney.json"
+  }
+]
