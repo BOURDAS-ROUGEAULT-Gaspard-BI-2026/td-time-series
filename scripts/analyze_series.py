@@ -1,10 +1,12 @@
-import csv, json, time
+import csv, json, os, time
 from datetime import date, timedelta
+
+from locations import LOCATIONS  # Le Mans, Sydney, ... (see scripts/locations.py)
 
 WINDOW = 7
 PROJECT_STEPS = 7
 
-def load_series(path="data/series.csv"):
+def load_series(path):
     with open(path) as f:
         rows = []
         for r in csv.DictReader(f):
@@ -78,8 +80,9 @@ def linear_trend_projection(days, values, start, steps=PROJECT_STEPS):
         })
     return projection, slope
 
-def main():
-    raw = load_series()
+def analyze_location(loc):
+    print(f"=== {loc['name']} ===")
+    raw = load_series(loc["csv"])
     cleaned, gap_ranges, start = clean_series(raw)
 
     print(f"Loaded {len(raw)} real daily CO2 readings "
@@ -112,17 +115,22 @@ def main():
 
     honest_note = (
         f"Projection covers {PROJECT_STEPS} days ahead from {len(cleaned)} days of "
-        f"real CO2 history ({len(gap_ranges)} known gap(s) in the source data). "
-        "This is a straight line through one seasonal window of real atmospheric "
-        "data -- CO2 has a well-known yearly cycle (lower in the Northern "
-        "Hemisphere's growing season, higher in winter), so a trend measured over "
-        "90 summer/autumn days should NOT be extrapolated across season boundaries. "
+        f"real CO2 history for {loc['name']} ({len(gap_ranges)} known gap(s) in the "
+        "source data). This is a straight line through one seasonal window of real "
+        "atmospheric data -- CO2 has a well-known yearly cycle (lower during the "
+        f"local growing season, higher in winter; {loc['name']} is in the "
+        f"{loc['hemisphere']} Hemisphere, so its seasons are "
+        f"{'the usual Northern ones' if loc['hemisphere'] == 'Northern' else 'inverted relative to Europe'}), "
+        "so a 90-day trend should NOT be extrapolated across season boundaries. "
         "Trust this projection only a few days out."
     )
     print(f"\nHonesty note: {honest_note}")
 
     output = {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "location": {"slug": loc["slug"], "name": loc["name"],
+                     "lat": loc["lat"], "lon": loc["lon"],
+                     "hemisphere": loc["hemisphere"]},
         "unit": "ppm",
         "raw": [{"day": c["day"], "date": c["date"], "value": c["value"]} for c in cleaned],
         "gaps": [
@@ -137,9 +145,22 @@ def main():
         "trend_slope_per_day": round(slope, 4),
         "honest_note": honest_note,
     }
-    with open("docs/data/series_analysis.json", "w") as f:
+    os.makedirs(os.path.dirname(loc["json"]), exist_ok=True)
+    with open(loc["json"], "w") as f:
         json.dump(output, f, indent=2)
-    print("\nWrote docs/data/series_analysis.json")
+    print(f"\nWrote {loc['json']}\n")
+
+def main():
+    for loc in LOCATIONS:
+        analyze_location(loc)
+
+    # Index the dashboard's dropdown reads -- paths relative to docs/.
+    index = [{"slug": l["slug"], "name": l["name"],
+              "file": os.path.relpath(l["json"], "docs").replace(os.sep, "/")}
+             for l in LOCATIONS]
+    with open("docs/data/locations.json", "w") as f:
+        json.dump(index, f, indent=2)
+    print("Wrote docs/data/locations.json")
 
 if __name__ == "__main__":
     main()

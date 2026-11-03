@@ -13,23 +13,36 @@
   #honesty { padding: 0.8rem 1rem; border: 2px solid #c46e0a; border-radius: 8px; background: #faf3e8; margin: 1rem 0; }
   canvas { margin-top: 1.5rem; }
   #updated { color: #666; font-size: 0.85rem; }
+  .picker { margin: 1rem 0; }
+  .picker label { font-weight: bold; margin-right: 0.5rem; }
+  .picker select { font-size: 1rem; padding: 0.3rem 0.5rem; }
 </style>
 </head>
 <body>
   <h1>CO2 time series lab</h1>
-  <p>Real atmospheric CO2 (ppm) for Le Mans, from Open-Meteo's Air Quality API — raw values, a rolling mean, exponential smoothing, and a linear-trend projection, all computed by <code>scripts/analyze_series.py</code> from <code>data/series.csv</code>.</p>
+  <p>Real atmospheric CO2 (ppm) for <strong id="placeName">…</strong>, from Open-Meteo's Air Quality API — raw values, a rolling mean, exponential smoothing, and a linear-trend projection, all computed by <code>scripts/analyze_series.py</code> from the fetched daily series.</p>
+  <div class="picker">
+    <label for="location">Location:</label>
+    <select id="location"></select>
+  </div>
   <div class="kpis" id="kpis">Loading...</div>
   <div id="honesty"></div>
   <canvas id="seriesChart" height="320"></canvas>
   <p id="updated"></p>
 
 <script>
-fetch('data/series_analysis.json')
-  .then(r => r.json())
-  .then(data => {
+let chart = null;
+const select = document.getElementById('location');
+
+function render(data) {
+    if (chart) { chart.destroy(); chart = null; }
+    const placeName = (data.location && data.location.name) || 'Le Mans';
+    document.getElementById('placeName').textContent = placeName;
     const raw = data.raw || [];
     if (raw.length === 0) {
       document.getElementById('kpis').innerHTML = '<p>No analysis yet -- run "Update analysis" from the Actions tab.</p>';
+      document.getElementById('honesty').innerHTML = '';
+      document.getElementById('updated').textContent = '';
       return;
     }
     const rollingMean = data.rolling_mean || [];
@@ -69,12 +82,12 @@ fetch('data/series_analysis.json')
       { label: 'Projection (low confidence)', data: seriesFor(projection), borderColor: '#c46e0a', backgroundColor: 'transparent', pointRadius: 3, borderWidth: 2, borderDash: [6, 4] },
     ];
 
-    new Chart(document.getElementById('seriesChart'), {
+    chart = new Chart(document.getElementById('seriesChart'), {
       type: 'line',
       data: { labels: allLabels, datasets },
       options: {
         plugins: {
-          title: { display: true, text: `Real atmospheric CO2 (${unit}), Le Mans — raw → cleaned → smoothed → projected (dashed = beyond observed data)` },
+          title: { display: true, text: `Real atmospheric CO2 (${unit}), ${placeName} — raw → cleaned → smoothed → projected (dashed = beyond observed data)` },
           tooltip: { mode: 'index', intersect: false },
         },
         scales: {
@@ -88,9 +101,37 @@ fetch('data/series_analysis.json')
     document.getElementById('updated').textContent =
       `Data last analyzed ${data.generated_at || '(no timestamp -- see script output)'}` +
       (gaps.length ? ` -- gap(s) detected: ${gaps.map(g => `${g.start_date} to ${g.end_date}`).join(', ')}` : ' -- no gaps in this pull.');
-  })
-  .catch(err => {
-    document.getElementById('kpis').innerHTML = '<p>Could not load analysis (' + err + ').</p>';
+}
+
+function load(file) {
+  document.getElementById('kpis').innerHTML = 'Loading...';
+  fetch(file)
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(render)
+    .catch(err => {
+      if (chart) { chart.destroy(); chart = null; }
+      document.getElementById('kpis').innerHTML = '<p>Could not load analysis (' + err + ').</p>';
+      document.getElementById('honesty').innerHTML = '';
+      document.getElementById('updated').textContent = '';
+    });
+}
+
+// The dropdown is built from docs/data/locations.json (written by
+// analyze_series.py). If that index is missing -- e.g. an older run -- fall
+// back to the original single Le Mans file so the page never breaks.
+fetch('data/locations.json')
+  .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+  .catch(() => [{ slug: 'le-mans', name: 'Le Mans', file: 'data/series_analysis.json' }])
+  .then(locations => {
+    select.innerHTML = locations.map(l => `<option value="${l.file}">${l.name}</option>`).join('');
+    const wanted = locations.find(l => l.slug === location.hash.slice(1));
+    if (wanted) select.value = wanted.file;
+    select.addEventListener('change', () => {
+      const l = locations.find(x => x.file === select.value);
+      history.replaceState(null, '', '#' + l.slug);
+      load(select.value);
+    });
+    load(select.value);
   });
 </script>
 </body>
